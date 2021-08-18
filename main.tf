@@ -1107,7 +1107,15 @@ resource "aws_nat_gateway" "this" {
   depends_on = [aws_internet_gateway.this]
 }
 
+resource "time_sleep" "private_nat_gateway_wait" {
+  count = var.create_vpc && var.enable_nat_gateway ? local.nat_gateway_count : 0
+
+  depends_on = [aws_route_table.private, aws_nat_gateway.this]
+  create_duration = "2m"
+}
+
 resource "aws_route" "private_nat_gateway" {
+  depends_on = [time_sleep.private_nat_gateway_wait]
   count = var.create_vpc && var.enable_nat_gateway ? local.nat_gateway_count : 0
 
   route_table_id         = element(aws_route_table.private.*.id, count.index)
