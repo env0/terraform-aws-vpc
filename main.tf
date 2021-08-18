@@ -1118,8 +1118,8 @@ resource "aws_nat_gateway" "this" {
 }
 
 resource "time_sleep" "sleep_for_routes" {
-  count = var.create_vpc && local.max_subnet_length > 0 ? 1 : 0
-
+  # Since aws_route doesn't respect timeout, we can add time before the route creation to help mitigate the problem
+  # https://github.com/hashicorp/terraform-provider-aws/issues/20227#issuecomment-900589138
   depends_on = [aws_route_table.private, aws_route_table.public, aws_route_table.database]
   create_duration = "2m"
 }
