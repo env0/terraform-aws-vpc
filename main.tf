@@ -1122,6 +1122,7 @@ resource "time_sleep" "sleep_for_routes" {
   # https://github.com/hashicorp/terraform-provider-aws/issues/20227#issuecomment-900589138
   depends_on = [aws_route_table.private, aws_route_table.public, aws_route_table.database]
   create_duration = "2m"
+  destroy_duration = "2m"
 }
 
 resource "aws_route" "private_nat_gateway" {
