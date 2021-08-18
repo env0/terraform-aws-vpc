@@ -210,6 +210,8 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route" "public_internet_gateway" {
+  depends_on = [time_sleep.sleep_for_routes]
+
   count = var.create_vpc && var.create_igw && length(var.public_subnets) > 0 ? 1 : 0
 
   route_table_id         = aws_route_table.public[0].id
@@ -222,6 +224,8 @@ resource "aws_route" "public_internet_gateway" {
 }
 
 resource "aws_route" "public_internet_gateway_ipv6" {
+  depends_on = [time_sleep.sleep_for_routes]
+
   count = var.create_vpc && var.create_igw && var.enable_ipv6 && length(var.public_subnets) > 0 ? 1 : 0
 
   route_table_id              = aws_route_table.public[0].id
@@ -275,6 +279,8 @@ resource "aws_route_table" "database" {
 }
 
 resource "aws_route" "database_internet_gateway" {
+  depends_on = [time_sleep.sleep_for_routes]
+
   count = var.create_vpc && var.create_igw && var.create_database_subnet_route_table && length(var.database_subnets) > 0 && var.create_database_internet_gateway_route && false == var.create_database_nat_gateway_route ? 1 : 0
 
   route_table_id         = aws_route_table.database[0].id
@@ -287,6 +293,8 @@ resource "aws_route" "database_internet_gateway" {
 }
 
 resource "aws_route" "database_nat_gateway" {
+  depends_on = [time_sleep.sleep_for_routes]
+
   count = var.create_vpc && var.create_database_subnet_route_table && length(var.database_subnets) > 0 && false == var.create_database_internet_gateway_route && var.create_database_nat_gateway_route && var.enable_nat_gateway ? var.single_nat_gateway ? 1 : length(var.database_subnets) : 0
 
   route_table_id         = element(aws_route_table.database.*.id, count.index)
@@ -299,6 +307,8 @@ resource "aws_route" "database_nat_gateway" {
 }
 
 resource "aws_route" "database_ipv6_egress" {
+  depends_on = [time_sleep.sleep_for_routes]
+
   count = var.create_vpc && var.create_egress_only_igw && var.enable_ipv6 && var.create_database_subnet_route_table && length(var.database_subnets) > 0 && var.create_database_internet_gateway_route ? 1 : 0
 
   route_table_id              = aws_route_table.database[0].id
@@ -1107,15 +1117,15 @@ resource "aws_nat_gateway" "this" {
   depends_on = [aws_internet_gateway.this]
 }
 
-resource "time_sleep" "private_nat_gateway_wait" {
-  count = var.create_vpc && var.enable_nat_gateway ? local.nat_gateway_count : 0
+resource "time_sleep" "sleep_for_routes" {
+  count = var.create_vpc && local.max_subnet_length > 0 ? 1 : 0
 
-  depends_on = [aws_route_table.private, aws_nat_gateway.this]
+  depends_on = [aws_route_table.private, aws_route_table.public, aws_route_table.database]
   create_duration = "2m"
 }
 
 resource "aws_route" "private_nat_gateway" {
-  depends_on = [time_sleep.private_nat_gateway_wait]
+  depends_on = [time_sleep.sleep_for_routes]
   count = var.create_vpc && var.enable_nat_gateway ? local.nat_gateway_count : 0
 
   route_table_id         = element(aws_route_table.private.*.id, count.index)
@@ -1128,6 +1138,7 @@ resource "aws_route" "private_nat_gateway" {
 }
 
 resource "aws_route" "private_ipv6_egress" {
+  depends_on = [time_sleep.sleep_for_routes]
   count = var.create_vpc && var.create_egress_only_igw && var.enable_ipv6 ? length(var.private_subnets) : 0
 
   route_table_id              = element(aws_route_table.private.*.id, count.index)
@@ -1278,6 +1289,7 @@ resource "aws_vpn_gateway_route_propagation" "public" {
 }
 
 resource "aws_vpn_gateway_route_propagation" "private" {
+  depends_on = [time_sleep.sleep_for_routes]
   count = var.create_vpc && var.propagate_private_route_tables_vgw && (var.enable_vpn_gateway || var.vpn_gateway_id != "") ? length(var.private_subnets) : 0
 
   route_table_id = element(aws_route_table.private.*.id, count.index)
